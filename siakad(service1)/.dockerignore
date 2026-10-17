@@ -1,0 +1,41 @@
+# Node modules & Vendor
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git & GitHub
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Development & Test files
+tests/
+phpunit.xml
+.editorconfig
+AGENTS.md
+CLAUDE.md
+CONTRIBUTING.md
+CHANGELOG.md
+debug_*.php
+debug_output.txt
+
+# Storage cache & logs
+storage/logs/*.log
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/*
+!storage/app/.gitignore
+public/storage
+
+# IDE & OS
+.cursor/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
