@@ -52,4 +52,14 @@ return [
     // AI Provider selection: 'gemini' or 'qwen'
     'ai_provider' => env('AI_PROVIDER', 'qwen'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Telegram Gateway (Service 2)
+    |--------------------------------------------------------------------------
+    */
+    'telegram_gateway' => [
+        'base_url' => env('TELEGRAM_GATEWAY_URL', 'http://127.0.0.1:8000'),
+        'timeout' => (int) env('TELEGRAM_GATEWAY_TIMEOUT', 5),
+    ],
+
 ];

@@ -17,7 +17,16 @@ class User extends Authenticatable
         'password',
         'role',
         'fakultas_id',
+        'telegram_chat_id',
     ];
+
+    /**
+     * Check if user has registered a Telegram Chat ID
+     */
+    public function hasTelegramChatId(): bool
+    {
+        return !empty($this->telegram_chat_id);
+    }
 
     protected $hidden = [
         'password',

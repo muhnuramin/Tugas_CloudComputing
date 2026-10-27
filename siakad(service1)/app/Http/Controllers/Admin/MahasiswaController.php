@@ -91,6 +91,7 @@ class MahasiswaController extends Controller
             'prodi_id' => 'required|exists:prodi,id',
             'angkatan' => 'required|numeric|min:2000|max:' . (date('Y') + 1),
             'dosen_pa_id' => 'nullable|exists:dosen,id',
+            'telegram_chat_id' => 'nullable|string|max:50',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -99,6 +100,7 @@ class MahasiswaController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'role' => 'mahasiswa',
+                'telegram_chat_id' => $validated['telegram_chat_id'] ?? null,
             ]);
 
             Mahasiswa::create([
@@ -125,13 +127,18 @@ class MahasiswaController extends Controller
             'dosen_pa_id' => 'nullable|exists:dosen,id',
             'status' => 'required|in:aktif,cuti,lulus,do',
             'password' => 'nullable|string|min:8',
+            'telegram_chat_id' => 'nullable|string|max:50',
         ]);
 
         DB::transaction(function () use ($validated, $mahasiswa) {
-            $mahasiswa->user->update([
+            $userUpdate = [
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-            ]);
+            ];
+            if (array_key_exists('telegram_chat_id', $validated)) {
+                $userUpdate['telegram_chat_id'] = $validated['telegram_chat_id'];
+            }
+            $mahasiswa->user->update($userUpdate);
 
             if (!empty($validated['password'])) {
                 $mahasiswa->user->update(['password' => Hash::make($validated['password'])]);

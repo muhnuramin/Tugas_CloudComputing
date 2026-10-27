@@ -52,7 +52,14 @@
                             @if($user->mahasiswa)<div class="text-xs text-siakad-secondary">NIM: {{ $user->mahasiswa->nim }}</div>@endif
                             @if($user->dosen)<div class="text-xs text-siakad-secondary">NIDN: {{ $user->dosen->nidn }}</div>@endif
                         </td>
-                        <td class="py-4 px-5 text-sm text-siakad-secondary">{{ $user->email }}</td>
+                        <td class="py-4 px-5 text-sm text-siakad-secondary">
+                            <div>{{ $user->email }}</div>
+                            @if($user->telegram_chat_id)
+                                <div class="text-xs text-sky-600 dark:text-sky-400 font-mono flex items-center gap-1 mt-0.5" title="Telegram Chat ID">
+                                    <span>✈️ {{ $user->telegram_chat_id }}</span>
+                                </div>
+                            @endif
+                        </td>
                         <td class="py-4 px-5">
                             @php
                                 $roleColors = ['superadmin'=>'bg-purple-100 text-purple-800','admin'=>'bg-blue-100 text-blue-800','admin_fakultas'=>'bg-indigo-100 text-indigo-800','dosen'=>'bg-green-100 text-green-800','mahasiswa'=>'bg-yellow-100 text-yellow-800'];
@@ -89,6 +96,7 @@
                 <form action="{{ route('admin.users.store') }}" method="POST" class="space-y-4">@csrf
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Nama</label><input type="text" name="name" required class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Email</label><input type="email" name="email" required class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
+                    <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Telegram Chat ID (opsional)</label><input type="text" name="telegram_chat_id" placeholder="Contoh: 123456789" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Password</label><input type="password" name="password" required minlength="8" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Role</label>
                         <select name="role" id="createRole" required onchange="toggleFakultasField('create')" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -113,6 +121,7 @@
                 <form id="editForm" method="POST" class="space-y-4">@csrf @method('PUT')
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Nama</label><input type="text" name="name" id="editName" required class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Email</label><input type="email" name="email" id="editEmail" required class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
+                    <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Telegram Chat ID (opsional)</label><input type="text" name="telegram_chat_id" id="editTelegramChatId" placeholder="Contoh: 123456789" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Password (kosongkan jika tidak diubah)</label><input type="password" name="password" minlength="8" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"></div>
                     <div><label class="block text-sm font-medium text-siakad-secondary mb-1">Role</label>
                         <select name="role" id="editRole" required onchange="toggleFakultasField('edit')" class="input-saas w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white">
@@ -141,6 +150,7 @@
             document.getElementById('editEmail').value = user.email;
             document.getElementById('editRole').value = user.role;
             document.getElementById('editFakultasId').value = user.fakultas_id || '';
+            document.getElementById('editTelegramChatId').value = user.telegram_chat_id || '';
             toggleFakultasField('edit');
             openModal('editModal');
         }

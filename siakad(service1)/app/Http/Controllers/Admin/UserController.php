@@ -75,6 +75,7 @@ class UserController extends Controller
             'password' => ['required', 'string', Password::min(8)],
             'role'     => 'required|in:superadmin,admin_fakultas,dosen,mahasiswa',
             'fakultas_id' => 'nullable|exists:fakultas,id',
+            'telegram_chat_id' => 'nullable|string|max:50',
             // Polymorphic validation
             'nim'      => 'required_if:role,mahasiswa|nullable|unique:mahasiswa,nim',
             'nidn'     => 'required_if:role,dosen|nullable|unique:dosen,nidn',
@@ -108,6 +109,7 @@ class UserController extends Controller
             'password' => ['nullable', 'string', Password::min(8)],
             'role'     => 'required|in:superadmin,admin_fakultas,dosen,mahasiswa',
             'fakultas_id' => 'nullable|exists:fakultas,id',
+            'telegram_chat_id' => 'nullable|string|max:50',
         ]);
 
         $user->update([
@@ -115,6 +117,7 @@ class UserController extends Controller
             'email' => $validated['email'],
             'role' => $validated['role'],
             'fakultas_id' => $validated['fakultas_id'] ?? null,
+            'telegram_chat_id' => $validated['telegram_chat_id'] ?? null,
         ]);
 
         if (!empty($validated['password'])) {

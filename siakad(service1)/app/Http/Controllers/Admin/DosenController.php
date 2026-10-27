@@ -73,6 +73,7 @@ class DosenController extends Controller
             'password' => 'required|string|min:8',
             'nidn' => 'required|string|unique:dosen,nidn',
             'prodi_id' => 'required|exists:prodi,id',
+            'telegram_chat_id' => 'nullable|string|max:50',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -81,6 +82,7 @@ class DosenController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'role' => 'dosen',
+                'telegram_chat_id' => $validated['telegram_chat_id'] ?? null,
             ]);
 
             Dosen::create([
@@ -101,13 +103,18 @@ class DosenController extends Controller
             'nidn' => 'required|string|unique:dosen,nidn,' . $dosen->id,
             'prodi_id' => 'required|exists:prodi,id',
             'password' => 'nullable|string|min:8',
+            'telegram_chat_id' => 'nullable|string|max:50',
         ]);
 
         DB::transaction(function () use ($validated, $dosen) {
-            $dosen->user->update([
+            $userUpdate = [
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-            ]);
+            ];
+            if (array_key_exists('telegram_chat_id', $validated)) {
+                $userUpdate['telegram_chat_id'] = $validated['telegram_chat_id'];
+            }
+            $dosen->user->update($userUpdate);
 
             if (!empty($validated['password'])) {
                 $dosen->user->update(['password' => Hash::make($validated['password'])]);

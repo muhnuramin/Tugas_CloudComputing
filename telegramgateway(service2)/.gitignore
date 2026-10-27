@@ -1,0 +1,13 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+.vscode/
+
+# Docker
+*.log
+*.sqlite3

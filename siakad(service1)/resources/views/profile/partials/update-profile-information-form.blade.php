@@ -47,6 +47,15 @@
             @endif
         </div>
 
+        <div>
+            <x-input-label for="telegram_chat_id" :value="__('Telegram Chat ID')" />
+            <x-text-input id="telegram_chat_id" name="telegram_chat_id" type="text" class="mt-1 block w-full" :value="old('telegram_chat_id', $user->telegram_chat_id)" placeholder="Contoh: 123456789" />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ __('Masukkan Chat ID Telegram Anda untuk menerima notifikasi saat Anda berhasil login. Dapatkan Chat ID dengan mengirim /start atau /id ke bot Telegram SIAKAD.') }}
+            </p>
+            <x-input-error class="mt-2" :messages="$errors->get('telegram_chat_id')" />
+        </div>
+
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('Save') }}</x-primary-button>
 

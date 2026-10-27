@@ -29,6 +29,11 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
+
+        // Kirim notifikasi login ke Telegram via Service 2 jika user memiliki telegram_chat_id
+        if ($user && $user->telegram_chat_id) {
+            app(\App\Services\TelegramGatewayService::class)->sendLoginNotification($user, $request);
+        }
         
         // Redirect berdasarkan role
         $redirectRoute = match ($user->role) {

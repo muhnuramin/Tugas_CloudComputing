@@ -156,3 +156,43 @@ test('registration requires minimum password length', function () {
     $response->assertSessionHasErrors(['password']);
     $this->assertGuest();
 });
+
+test('login sends telegram notification when user has telegram_chat_id', function () {
+    \Illuminate\Support\Facades\Http::fake([
+        '*/send-message' => \Illuminate\Support\Facades\Http::response(['ok' => true], 200),
+    ]);
+
+    $user = User::factory()->create([
+        'password' => Hash::make('password'),
+        'telegram_chat_id' => '123456789',
+    ]);
+
+    $response = $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+        return str_contains($request->url(), '/send-message') &&
+            $request['chat_id'] === '123456789' &&
+            str_contains($request['text'], 'Notifikasi Login SIAKAD');
+    });
+});
+
+test('login does not send telegram notification when user has no telegram_chat_id', function () {
+    \Illuminate\Support\Facades\Http::fake();
+
+    $user = User::factory()->create([
+        'password' => Hash::make('password'),
+        'telegram_chat_id' => null,
+    ]);
+
+    $response = $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    \Illuminate\Support\Facades\Http::assertNothingSent();
+});

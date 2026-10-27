@@ -19,6 +19,7 @@ class UserService
                 'password'    => Hash::make($data['password']),
                 'role'        => $data['role'],
                 'fakultas_id' => $data['fakultas_id'] ?? null,
+                'telegram_chat_id' => $data['telegram_chat_id'] ?? null,
             ]);
 
 
