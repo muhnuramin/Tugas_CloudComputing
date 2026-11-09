@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendTelegramLoginNotification;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,14 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
+
+        if (config('services.telegram.notification_chat_id')) {
+            SendTelegramLoginNotification::dispatch([
+                'name' => $user->name,
+                'email' => $user->email,
+                'message' => 'Pengguna berhasil login ke LMS',
+            ]);
+        }
 
         // Kirim notifikasi login ke Telegram via Service 2 jika user memiliki telegram_chat_id
         if ($user && $user->telegram_chat_id) {

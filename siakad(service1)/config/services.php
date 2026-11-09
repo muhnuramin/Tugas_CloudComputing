@@ -62,4 +62,9 @@ return [
         'timeout' => (int) env('TELEGRAM_GATEWAY_TIMEOUT', 5),
     ],
 
+    'telegram' => [
+        'url' => env('TELEGRAM_SERVICE_URL', env('TELEGRAM_GATEWAY_URL')),
+        'notification_chat_id' => env('TELEGRAM_NOTIFICATION_CHAT_ID'),
+    ],
+
 ];
