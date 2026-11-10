@@ -5,6 +5,8 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\SendTelegramLoginNotification;
 
 uses(RefreshDatabase::class);
 
@@ -27,6 +29,24 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard'));
+});
+
+test('successful login queues a Telegram notification for the configured recipient', function () {
+    Queue::fake();
+    config(['services.telegram.notification_chat_id' => '-5312678501']);
+
+    $user = User::factory()->create([
+        'password' => Hash::make('password'),
+    ]);
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    Queue::assertPushed(SendTelegramLoginNotification::class, function ($job) use ($user) {
+        return $job->userData['email'] === $user->email;
+    });
 });
 
 test('users can not authenticate with invalid password', function () {
