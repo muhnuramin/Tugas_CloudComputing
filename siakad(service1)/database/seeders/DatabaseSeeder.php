@@ -27,12 +27,14 @@ class DatabaseSeeder extends Seeder
         // ==========================================
         // 1. SUPERADMIN
         // ==========================================
-        User::create([
-            'name' => 'Super Administrator',
-            'email' => 'superadmin@siakad.test',
-            'password' => Hash::make('password'),
-            'role' => 'superadmin',
-        ]);
+       User::updateOrCreate(
+    ['email' => 'superadmin@siakad.test'],
+    [
+        'name' => 'Super Administrator',
+        'password' => Hash::make('password'),
+        'role' => 'superadmin',
+    ]
+);
 
         // ==========================================
         // 2. TAHUN AKADEMIK

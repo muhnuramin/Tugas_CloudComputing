@@ -61,7 +61,7 @@ jobs:
 
       - name: Configure Environment
         run: |
-          sed -i 's/DB_CONNECTION=sqlite/DB_CONNECTION=mysql/' .env
+          sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=mysql/' .env
           sed -i 's/# DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
           sed -i 's/# DB_PORT=3306/DB_PORT=3306/' .env
           sed -i 's/# DB_DATABASE=siakad/DB_DATABASE=siakad_test/' .env

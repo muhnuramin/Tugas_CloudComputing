@@ -1,3 +1,4 @@
+
 services:
     laravel.test:
         build:
@@ -9,7 +10,7 @@ services:
         extra_hosts:
             - "host.docker.internal:host-gateway"
         ports:
-            - "${APP_PORT:-8080}:80"
+            - "${APP_PORT:-8081}:80"
             - "${VITE_PORT:-5173}:${VITE_PORT:-5173}"
         environment:
             WWWUSER: "${WWWUSER:-1000}"
@@ -24,6 +25,26 @@ services:
         depends_on:
             mysql:
                 condition: service_healthy
+
+    # Laravel Queue Worker
+    laravel.queue:
+        image: sail-8.4/app
+        container_name: lms-queue-worker
+        restart: unless-stopped
+        command: php artisan queue:work database --sleep=1 --tries=3 --timeout=30
+        environment:
+            WWWUSER: "${WWWUSER:-1000}"
+            LARAVEL_SAIL: 1
+        volumes:
+            - ".:/var/www/html"
+        networks:
+            - sail
+        depends_on:
+            mysql:
+                condition: service_healthy
+            laravel.test:
+                condition: service_started
+
     mysql:
         image: "mysql/mysql-server:8.0"
         ports:
@@ -48,6 +69,7 @@ services:
             retries: 5
             timeout: 5s
             interval: 5s
+
     mailpit:
         image: "axllent/mailpit:latest"
         ports:
@@ -55,9 +77,11 @@ services:
             - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
         networks:
             - sail
+
 networks:
     sail:
         driver: bridge
+
 volumes:
     sail-mysql:
         driver: local

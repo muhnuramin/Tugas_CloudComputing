@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
 use App\Models\Krs;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class BimbinganController extends Controller
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     /**
      * Daftar mahasiswa bimbingan
      */
@@ -173,6 +176,7 @@ class BimbinganController extends Controller
         }
 
         $krs->update(['status' => 'approved']);
+        $this->notificationService->notifyKrsStatus($krs);
 
         return redirect()->route('dosen.bimbingan.krs-approval')
             ->with('success', 'KRS mahasiswa ' . $krs->mahasiswa->user->name . ' berhasil disetujui');
@@ -195,6 +199,7 @@ class BimbinganController extends Controller
 
         $catatan = $request->input('catatan', 'KRS ditolak oleh Dosen PA. Silakan revisi dan ajukan kembali.');
         $krs->update(['status' => 'rejected', 'catatan' => $catatan]);
+        $this->notificationService->notifyKrsStatus($krs);
 
         return redirect()->route('dosen.bimbingan.krs-approval')
             ->with('success', 'KRS mahasiswa ' . $krs->mahasiswa->user->name . ' ditolak');

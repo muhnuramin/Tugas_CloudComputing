@@ -45,7 +45,7 @@ services:
     image: siakad-app:latest
     container_name: siakad-prod-queue
     restart: unless-stopped
-    command: php artisan queue:work --sleep=3 --tries=3 --timeout=90
+    command: php artisan queue:work --sleep=1 --tries=3 --timeout=30
     env_file: .env
     volumes:
       - app_storage:/var/www/html/storage
