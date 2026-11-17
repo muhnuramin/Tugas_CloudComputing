@@ -41,7 +41,7 @@ class AuthenticatedSessionController extends Controller
 
         // Kirim notifikasi login ke Telegram via Service 2 jika user memiliki telegram_chat_id
         if ($user && $user->telegram_chat_id) {
-            app(\App\Services\TelegramGatewayService::class)->sendLoginNotification($user, $request);
+            app(\App\Services\TelegramGatewayService::class)->queueLoginNotification($user, $request);
         }
         
         // Redirect berdasarkan role

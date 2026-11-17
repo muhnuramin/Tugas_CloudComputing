@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendTelegramNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -21,10 +22,10 @@ class TelegramGatewayService
     /**
      * Kirim notifikasi login ke Telegram milik user melalui Service 2 (Telegram Gateway).
      */
-    public function sendLoginNotification(User $user, ?Request $request = null): bool
+    public function queueLoginNotification(User $user, ?Request $request = null): void
     {
         if (empty($user->telegram_chat_id)) {
-            return false;
+            return;
         }
 
         $now = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y, H:i:s');
@@ -44,13 +45,13 @@ class TelegramGatewayService
             . "• <b>Perangkat:</b> {$device}\n\n"
             . "⚠️ <i>Jika ini bukan Anda, segera ubah kata sandi akun Anda atau hubungi administrator.</i>";
 
-        return $this->sendMessage($user->telegram_chat_id, $message, 'HTML');
+        SendTelegramNotification::dispatch($user->telegram_chat_id, $message, 'HTML')->afterCommit();
     }
 
     /**
      * Kirim pesan teks ke Telegram melalui endpoint Service 2 (/send-message).
      */
-    public function sendMessage(string|int $chatId, string $text, string $parseMode = 'HTML'): bool
+    public function sendMessage(string|int $chatId, string $text, ?string $parseMode = 'HTML'): bool
     {
         try {
             $endpoint = "{$this->baseUrl}/send-message";

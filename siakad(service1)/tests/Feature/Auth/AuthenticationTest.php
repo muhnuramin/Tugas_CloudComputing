@@ -3,6 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Services\NotificationService;
+use App\Services\TelegramGatewayService;
+use App\Jobs\SendTelegramNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
@@ -177,10 +180,12 @@ test('registration requires minimum password length', function () {
     $this->assertGuest();
 });
 
-test('login sends telegram notification when user has telegram_chat_id', function () {
+test('login does not wait for telegram delivery', function () {
+    Queue::fake();
     \Illuminate\Support\Facades\Http::fake([
         '*/send-message' => \Illuminate\Support\Facades\Http::response(['ok' => true], 200),
     ]);
+    config(['services.telegram.notification_chat_id' => null]);
 
     $user = User::factory()->create([
         'password' => Hash::make('password'),
@@ -193,15 +198,47 @@ test('login sends telegram notification when user has telegram_chat_id', functio
     ]);
 
     $this->assertAuthenticated();
+    \Illuminate\Support\Facades\Http::assertNothingSent();
+});
+
+test('telegram notification job sends its message through the configured gateway', function () {
+    \Illuminate\Support\Facades\Http::fake([
+        '*/send-message' => \Illuminate\Support\Facades\Http::response(['ok' => true], 200),
+    ]);
+
+    $job = new SendTelegramNotification('123456789', 'KRS Disetujui', null);
+    $job->handle(app(TelegramGatewayService::class));
+
     \Illuminate\Support\Facades\Http::assertSent(function ($request) {
         return str_contains($request->url(), '/send-message') &&
             $request['chat_id'] === '123456789' &&
-            str_contains($request['text'], 'Notifikasi Login SIAKAD');
+            $request['text'] === 'KRS Disetujui' &&
+            $request['parse_mode'] === null;
     });
+});
+
+test('application notifications persist without synchronously contacting telegram', function () {
+    Queue::fake();
+    \Illuminate\Support\Facades\Http::fake();
+    $user = User::factory()->create(['telegram_chat_id' => '123456789']);
+
+    $notification = app(NotificationService::class)->send(
+        $user,
+        'jadwal_change',
+        'Perubahan jadwal',
+        'Jadwal kelas diperbarui.',
+    );
+
+    $this->assertDatabaseHas('notifications', [
+        'id' => $notification->id,
+        'user_id' => $user->id,
+    ]);
+    \Illuminate\Support\Facades\Http::assertNothingSent();
 });
 
 test('login does not send telegram notification when user has no telegram_chat_id', function () {
     \Illuminate\Support\Facades\Http::fake();
+    config(['services.telegram.notification_chat_id' => null]);
 
     $user = User::factory()->create([
         'password' => Hash::make('password'),

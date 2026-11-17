@@ -74,7 +74,7 @@ cd Tugas_CloudComputing
    # Linux / macOS:
    cp .env.example .env
    ```
-   *(File `.env.example` sudah disetup dengan bot token Telegram `@siakadcc_bot` yang siap pakai).*
+   Buka file `.env` tersebut dan isi `TELEGRAM_BOT_TOKEN` dengan token bot dari BotFather. Jangan menyimpan token bot di README, `.env.example`, atau Git. Jika token pernah masuk ke Git, cabut dan buat token baru melalui BotFather.
 
 3. Jalankan container Service 2:
    ```bash
@@ -98,7 +98,7 @@ cd Tugas_CloudComputing
    # Linux / macOS:
    cp .env.example .env
    ```
-   *(File `.env.example` sudah disetup otomatis terhubung ke `http://host.docker.internal:8002` dan database MySQL Docker).*
+   File `.env.example` mengatur `TELEGRAM_GATEWAY_URL=http://host.docker.internal:8002` dan database MySQL Docker.
 
 3. **Install Dependensi Composer via Docker** *(Karena folder vendor tidak di-commit ke Git)*:
    
@@ -112,9 +112,9 @@ cd Tugas_CloudComputing
    docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/html laravelsail/php84-composer:latest composer install --ignore-platform-reqs
    ```
 
-4. Jalankan container SIAKAD:
+4. Jalankan database dan aplikasi web SIAKAD:
    ```bash
-   docker compose up -d
+   docker compose up -d mysql laravel.test
    ```
 
 ---
@@ -124,14 +124,20 @@ cd Tugas_CloudComputing
 Setelah container SIAKAD aktif, jalankan perintah berikut di terminal:
 
 ```bash
-docker exec siakadservice1-laravel.test-1 php artisan key:generate
-docker exec siakadservice1-laravel.test-1 php artisan migrate --seed
+docker compose exec laravel.test php artisan key:generate
+docker compose exec laravel.test php artisan migrate --seed
 ```
 
 Perintah ini akan secara otomatis:
 - Men-generate APP_KEY enkripsi Laravel.
-- Membuat 39 tabel database akademik di container MySQL.
+- Menjalankan seluruh migrasi database aplikasi, termasuk tabel antrean.
 - Mengisi data master kurikulum, fakultas, prodi, dan 4 akun login demo.
+
+Setelah migrasi selesai, hidupkan worker antrean:
+
+```bash
+docker compose up -d laravel.queue
+```
 
 ---
 
@@ -151,18 +157,21 @@ Setelah proses seed selesai, dosen dapat langsung login ke web SIAKAD di: 👉 *
 ## 5. Cara Mendemonstrasikan Notifikasi Telegram ke Dosen
 
 1. **Aktivasi Bot Telegram:**
-   - Dosen membuka Telegram dan mencari bot: **`@siakadcc_bot`** (atau via link: [https://t.me/siakadcc_bot](https://t.me/siakadcc_bot)).
-   - Klik tombol **Start** (`/start`).
+   - Pengguna membuka bot yang tokennya dimasukkan ke file `.env` gateway dan menekan **Start**.
+   - Biarkan percakapan dengan bot tetap aktif agar bot dapat mengirim pesan kepada pengguna.
 2. **Dapatkan Chat ID Dosen:**
-   - Dosen membuka bot **`@userinfobot`** di Telegram dan klik `/start`.
-   - Catat angka **Id** (contoh: `1234567890`).
+   - Dari akun Telegram yang sama, buka bot **`@userinfobot`** dan klik `/start`.
+   - Catat angka **Id** yang ditampilkan.
 3. **Simpan Chat ID ke Akun SIAKAD:**
-   - Login ke [http://localhost:8080](http://localhost:8080) dengan akun `mahasiswa@siakad.test` (password: `password`).
+   - Login ke [http://localhost:8080](http://localhost:8080) menggunakan akun SIAKAD yang notifikasinya ingin diterima.
    - Masuk ke menu **Profil** di pojok kanan atas.
-   - Isi kolom **Telegram Chat ID** dengan nomor ID dosen, lalu klik **Simpan**.
+   - Isi kolom **Telegram Chat ID** dengan ID akun Telegram Anda, lalu klik **Simpan**.
 4. **Uji Notifikasi:**
    - Klik **Logout** lalu lakukan **Login** kembali.
-   - Bot **`@siakadcc_bot`** akan langsung mengirimkan notifikasi login ke akun Telegram dosen.
+   - Worker antrean pada service `laravel.queue` akan mengirim notifikasi login ke Telegram, tanpa menunggu respons Telegram di halaman login.
+   - Perubahan jadwal, persetujuan/penolakan KRS, dan pembaruan nilai juga membuat notifikasi di aplikasi dan antrean Telegram jika Chat ID penerima sudah disimpan.
+
+> **Catatan:** Pastikan `QUEUE_CONNECTION=database`, `TELEGRAM_GATEWAY_URL` mengarah ke Service 2, dan container queue worker tetap berjalan. Pengiriman Telegram bersifat asinkron; waktu sampai tetap bergantung pada koneksi jaringan dan layanan Telegram, jadi tidak dapat dijamin tanpa jeda sama sekali.
 
 ---
 

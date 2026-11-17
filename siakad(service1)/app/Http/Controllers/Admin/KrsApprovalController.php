@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Krs;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class KrsApprovalController extends Controller
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     public function index(Request $request)
     {
         $status = $request->get('status', 'pending');
@@ -87,6 +90,7 @@ class KrsApprovalController extends Controller
         }
 
         $krs->update(['status' => 'approved']);
+        $this->notificationService->notifyKrsStatus($krs);
 
         return redirect()->route('admin.krs-approval.index')
             ->with('success', 'KRS mahasiswa ' . $krs->mahasiswa->user->name . ' berhasil disetujui');
@@ -99,6 +103,7 @@ class KrsApprovalController extends Controller
         }
 
         $krs->update(['status' => 'rejected']);
+        $this->notificationService->notifyKrsStatus($krs);
 
         return redirect()->route('admin.krs-approval.index')
             ->with('success', 'KRS mahasiswa ' . $krs->mahasiswa->user->name . ' ditolak');
@@ -128,10 +133,16 @@ class KrsApprovalController extends Controller
             $query->whereHas('mahasiswa.prodi', fn($q) => $q->where('fakultas_id', $fakultasId));
         }
 
+        $pendingKrs = (clone $query)->with('mahasiswa.user')->get();
         $updatedCount = $query->update(['status' => 'approved']);
 
         if ($updatedCount === 0) {
             return redirect()->back()->with('warning', 'Tidak ada KRS yang dapat disetujui (mungkin sudah diproses atau di luar wewenang Anda)');
+        }
+
+        foreach ($pendingKrs as $krs) {
+            $krs->status = 'approved';
+            $this->notificationService->notifyKrsStatus($krs);
         }
 
         return redirect()->back()->with('success', $updatedCount . ' KRS berhasil disetujui');

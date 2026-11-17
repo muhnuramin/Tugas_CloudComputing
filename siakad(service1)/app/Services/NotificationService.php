@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\Kelas;
+use App\Models\Krs;
 use App\Models\JadwalKuliah;
+use App\Jobs\SendTelegramNotification;
 use Illuminate\Support\Collection;
 
 class NotificationService
@@ -15,13 +17,22 @@ class NotificationService
      */
     public function send(User $user, string $type, string $title, string $message, array $data = []): Notification
     {
-        return Notification::create([
+        $notification = Notification::create([
             'user_id' => $user->id,
             'type' => $type,
             'title' => $title,
             'message' => $message,
             'data' => $data,
         ]);
+
+        if ($user->hasTelegramChatId()) {
+            SendTelegramNotification::dispatch(
+                $user->telegram_chat_id,
+                "{$title}\n\n{$message}",
+            )->afterCommit();
+        }
+
+        return $notification;
     }
 
     /**
@@ -76,6 +87,25 @@ class NotificationService
         ];
 
         return $this->sendToMany($mahasiswaList, Notification::TYPE_JADWAL_CHANGE, $title, $message, $data);
+    }
+
+    public function notifyKrsStatus(Krs $krs): Notification
+    {
+        $krs->loadMissing('mahasiswa.user');
+
+        $approved = $krs->status === 'approved';
+        $title = $approved ? 'KRS Disetujui' : 'KRS Ditolak';
+        $message = $approved
+            ? 'Pengajuan KRS Anda telah disetujui.'
+            : 'Pengajuan KRS Anda ditolak.' . ($krs->catatan ? "\nCatatan: {$krs->catatan}" : '');
+
+        return $this->send(
+            $krs->mahasiswa->user,
+            $approved ? Notification::TYPE_KRS_APPROVED : Notification::TYPE_KRS_REJECTED,
+            $title,
+            $message,
+            ['krs_id' => $krs->id, 'status' => $krs->status],
+        );
     }
 
     /**
