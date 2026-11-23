@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
 use App\Services\AkademikCalculationService;
+use App\Services\CacheService;
 use App\Models\Krs;
-use App\Models\TahunAkademik;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -28,14 +28,16 @@ class DashboardController extends Controller
 
         $mahasiswa->load(['prodi.fakultas', 'dosenPa.user']);
 
+        $nilaiList = $this->calculationService->getMahasiswaNilaiWithRelations($mahasiswa);
+
         // Calculate IPK
-        $ipkData = $this->calculationService->calculateIPK($mahasiswa);
+        $ipkData = $this->calculationService->calculateIPK($mahasiswa, $nilaiList);
         
         // Get IPS History for chart
-        $ipsHistory = $this->calculationService->getIPSHistory($mahasiswa);
+        $ipsHistory = $this->calculationService->getIPSHistory($mahasiswa, $nilaiList);
         
         // Current semester IPS = last semester with actual grades (IPS > 0)
-        $activeTA = TahunAkademik::where('is_active', true)->first();
+        $activeTA = app(CacheService::class)->getActiveTahunAkademik();
         $semestersWithGrades = $ipsHistory->filter(fn($s) => $s['ips'] > 0);
         $lastSemesterWithGrades = $semestersWithGrades->last();
         $currentIps = $lastSemesterWithGrades ? ['ips' => $lastSemesterWithGrades['ips'], 'total_sks' => $lastSemesterWithGrades['total_sks']] : null;
@@ -56,7 +58,7 @@ class DashboardController extends Controller
             ->first();
 
         // Grade distribution
-        $gradeDistribution = $this->calculationService->getGradeDistribution($mahasiswa);
+        $gradeDistribution = $this->calculationService->getGradeDistribution($mahasiswa, $nilaiList);
 
         // Greeting based on time
         $hour = now()->hour;

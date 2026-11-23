@@ -9,7 +9,8 @@
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+        <noscript><link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet" /></noscript>
 
         <!-- Dark Mode Flash Prevention -->
         <script>
@@ -457,7 +458,7 @@
                     <a href="{{ url('admin/krs-approval') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('admin/krs-approval*') ? 'active' : '' }}">
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                         <span class="sidebar-text">Approval KRS</span>
-                        @php $pendingCount = \App\Models\Krs::where('status', 'pending')->count(); @endphp
+                        @php $pendingCount = \Illuminate\Support\Facades\Cache::remember('sidebar.admin.pending_krs', 60, fn() => \App\Models\Krs::where('status', 'pending')->count()); @endphp
                         @if($pendingCount > 0)
                         <span class="ml-auto px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">{{ $pendingCount }}</span>
                         @endif
@@ -488,7 +489,7 @@
                     <a href="{{ url('mahasiswa/krs') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('mahasiswa/krs*') ? 'active' : '' }}">
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                         <span class="sidebar-text">Pengisian KRS</span>
-                        @php $krsStatus = \App\Models\Krs::where('mahasiswa_id', Auth::user()->mahasiswa?->id)->latest()->first(); @endphp
+                        @php $krsStatus = $currentKrs ?? \App\Models\Krs::where('mahasiswa_id', Auth::user()->mahasiswa?->id)->latest()->first(); @endphp
                         @if(!$krsStatus || $krsStatus->status === 'draft')
                         <span class="ml-auto px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full">Baru</span>
                         @endif
@@ -560,8 +561,10 @@
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                         <span class="sidebar-text">Approval KRS</span>
                         @php 
-                            $dosen = Auth::user()->dosen;
-                            $pendingKrs = $dosen ? \App\Models\Krs::whereIn('mahasiswa_id', $dosen->mahasiswaBimbingan()->pluck('id'))->where('status', 'pending')->count() : 0;
+                            if (!isset($pendingKrs)) {
+                                $dosen = Auth::user()->dosen;
+                                $pendingKrs = $dosen ? \App\Models\Krs::whereIn('mahasiswa_id', $dosen->mahasiswaBimbingan()->pluck('id'))->where('status', 'pending')->count() : 0;
+                            }
                         @endphp
                         @if($pendingKrs > 0)
                         <span class="ml-auto px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">{{ $pendingKrs }}</span>
@@ -655,7 +658,12 @@
                         @endif
                         
                         <!-- Notifications Bell -->
-                        @php $unreadCount = \App\Models\Notification::where('user_id', Auth::id())->unread()->count(); @endphp
+                        @php
+                            $notifications = \App\Models\Notification::where('user_id', Auth::id())->orderBy('created_at', 'desc')->limit(10)->get();
+                            $unreadCount = $notifications->count() < 10
+                                ? $notifications->whereNull('read_at')->count()
+                                : \App\Models\Notification::where('user_id', Auth::id())->unread()->count();
+                        @endphp
                         <div x-data="{ notifOpen: false }" class="relative">
                             <button @click="notifOpen = !notifOpen" class="p-2 rounded-lg transition-colors hover:bg-siakad-light/50 relative" style="color: var(--text-secondary);" title="Notifikasi">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
@@ -676,7 +684,6 @@
                                     @endif
                                 </div>
                                 <div class="max-h-80 overflow-y-auto">
-                                    @php $notifications = \App\Models\Notification::where('user_id', Auth::id())->orderBy('created_at', 'desc')->limit(10)->get(); @endphp
                                     @forelse($notifications as $notif)
                                     <a href="{{ route('notifications.index') }}" class="block px-4 py-3 hover:bg-siakad-light/30 transition {{ !$notif->is_read ? 'bg-indigo-50/50' : '' }}" style="border-bottom: 1px solid var(--border-color);">
                                         <div class="flex gap-3">

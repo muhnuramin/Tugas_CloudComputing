@@ -87,7 +87,7 @@
                                 <span class="text-sm font-semibold text-siakad-primary">{{ \Carbon\Carbon::parse($jadwal->jam_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($jadwal->jam_selesai)->format('H:i') }}</span>
                             </div>
                             <h2 class="text-2xl font-bold text-siakad-dark dark:text-white mb-1">{{ $upcomingClass->mataKuliah->nama_mk }}</h2>
-                            <p class="text-siakad-secondary dark:text-gray-300">Kelas {{ $upcomingClass->nama_kelas }} • {{ $upcomingClass->krsDetail->count() }} Mahasiswa • Ruang {{ $jadwal->ruangan ?? '-' }}</p>
+                            <p class="text-siakad-secondary dark:text-gray-300">Kelas {{ $upcomingClass->nama_kelas }} • {{ $upcomingClass->krs_detail_count ?? $upcomingClass->krsDetail->count() }} Mahasiswa • Ruang {{ $jadwal->ruangan ?? '-' }}</p>
                         </div>
                         <a href="{{ route('dosen.presensi.kelas', $upcomingClass) }}" class="flex-shrink-0 flex items-center justify-center gap-2 px-6 py-4 bg-siakad-primary text-white text-lg font-bold rounded-xl shadow-lg hover:bg-siakad-primary/90 hover:scale-105 transition transform w-full md:w-auto">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
@@ -115,7 +115,7 @@
                                 <div class="flex items-center gap-2 text-xs text-siakad-secondary mt-0.5">
                                     <span class="font-medium bg-siakad-light px-1.5 py-0.5 rounded text-siakad-dark">{{ $kelas->nama_kelas }}</span>
                                     <span>•</span>
-                                    <span>{{ $kelas->krsDetail->count() }} Mhs</span>
+                                    <span>{{ $kelas->krs_detail_count ?? $kelas->krsDetail->count() }} Mhs</span>
                                 </div>
                             </div>
                             <a href="{{ route('dosen.presensi.kelas', $kelas) }}" class="p-2 bg-siakad-light/50 text-siakad-primary hover:bg-siakad-primary/10 rounded-lg group" title="Buka Presensi">
@@ -177,7 +177,7 @@
                                 <p class="font-medium text-siakad-dark">{{ $kelas->mataKuliah->nama_mk }}</p>
                                 <p class="text-xs text-siakad-secondary">{{ $kelas->mataKuliah->kode_mk }} • Kelas {{ $kelas->nama_kelas }}</p>
                             </div>
-                            <span class="text-xs bg-siakad-light text-siakad-secondary px-2 py-1 rounded-full">{{ $kelas->krsDetail->count() }} mhs</span>
+                            <span class="text-xs bg-siakad-light text-siakad-secondary px-2 py-1 rounded-full">{{ $kelas->krs_detail_count ?? $kelas->krsDetail->count() }} mhs</span>
                         </div>
                     </a>
                     @endforeach

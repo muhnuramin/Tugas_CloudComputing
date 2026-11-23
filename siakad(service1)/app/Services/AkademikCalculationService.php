@@ -34,11 +34,21 @@ class AkademikCalculationService
     }
 
     /**
+     * Fetch all nilai for a mahasiswa with relations needed for IPK/IPS calculations.
+     */
+    public function getMahasiswaNilaiWithRelations(Mahasiswa $mahasiswa): Collection
+    {
+        return Nilai::where('mahasiswa_id', $mahasiswa->id)
+            ->with(['kelas.mataKuliah', 'kelas.krsDetail.krs:id,tahun_akademik_id'])
+            ->get();
+    }
+
+    /**
      * Calculate IPK (Indeks Prestasi Kumulatif) - all semesters
      */
-    public function calculateIPK(Mahasiswa $mahasiswa): array
+    public function calculateIPK(Mahasiswa $mahasiswa, ?Collection $nilaiList = null): array
     {
-        $nilaiList = Nilai::where('mahasiswa_id', $mahasiswa->id)
+        $nilaiList ??= Nilai::where('mahasiswa_id', $mahasiswa->id)
             ->with('kelas.mataKuliah')
             ->get();
 
@@ -48,9 +58,9 @@ class AkademikCalculationService
     /**
      * Get grade distribution for a mahasiswa
      */
-    public function getGradeDistribution(Mahasiswa $mahasiswa): array
+    public function getGradeDistribution(Mahasiswa $mahasiswa, ?Collection $nilaiList = null): array
     {
-        $nilai = Nilai::where('mahasiswa_id', $mahasiswa->id)->get();
+        $nilai = $nilaiList ?? Nilai::where('mahasiswa_id', $mahasiswa->id)->get();
         
         $distribution = [
             'A' => 0, 'B+' => 0, 'B' => 0, 'C+' => 0, 
@@ -69,7 +79,7 @@ class AkademikCalculationService
     /**
      * Get semester-wise IPS history
      */
-    public function getIPSHistory(Mahasiswa $mahasiswa): Collection
+    public function getIPSHistory(Mahasiswa $mahasiswa, ?Collection $nilaiList = null): Collection
     {
         $krsHistory = Krs::where('mahasiswa_id', $mahasiswa->id)
             ->where('status', 'approved')
@@ -77,8 +87,21 @@ class AkademikCalculationService
             ->orderBy('created_at')
             ->get();
 
-        return $krsHistory->map(function ($krs) use ($mahasiswa) {
-            $ipsData = $this->calculateIPS($mahasiswa, $krs->tahun_akademik_id);
+        if ($krsHistory->isEmpty()) {
+            return collect();
+        }
+
+        $allNilai = $nilaiList ?? $this->getMahasiswaNilaiWithRelations($mahasiswa);
+        $allNilai->loadMissing(['kelas.mataKuliah', 'kelas.krsDetail.krs']);
+
+        return $krsHistory->map(function ($krs) use ($allNilai) {
+            $semesterNilai = $allNilai->filter(function ($nilai) use ($krs) {
+                return $nilai->kelas?->krsDetail?->contains(
+                    fn($kd) => (int) $kd->krs?->tahun_akademik_id === (int) $krs->tahun_akademik_id
+                ) ?? false;
+            });
+
+            $ipsData = $this->calculateIndexFromNilai($semesterNilai);
             return [
                 'tahun_akademik' => $krs->tahunAkademik->tahun . ' ' . $krs->tahunAkademik->semester,
                 'tahun_akademik_id' => $krs->tahun_akademik_id,
@@ -135,7 +158,7 @@ class AkademikCalculationService
             ];
         }
 
-        $ipkData = $this->calculateIPK($mahasiswa);
+        $ipkData = $this->calculateIndexFromNilai($nilaiList);
         
         return [
             'mahasiswa' => $mahasiswa,

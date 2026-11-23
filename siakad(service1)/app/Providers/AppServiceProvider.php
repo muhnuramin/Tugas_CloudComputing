@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        foreach ([config('session.files'), config('cache.stores.file.path'), config('view.compiled')] as $dir) {
+            if (is_string($dir) && $dir !== '' && !is_dir($dir)) {
+                @mkdir($dir, 0777, true);
+                @chmod($dir, 0777);
+            }
+        }
     }
 }

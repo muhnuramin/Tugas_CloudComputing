@@ -182,44 +182,46 @@
 
     @push('scripts')
     @if(count($gradeDistribution) > 0)
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const siakadPrimary = '#234C6A';
-        const siakadSecondary = '#456882';
-        const siakadDark = '#1B3C53';
-        
-        // Grade Chart
-        const gradeData = @json($gradeDistribution);
-        const gradeCtx = document.getElementById('gradeChart').getContext('2d');
-        new Chart(gradeCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(gradeData),
-                datasets: [{
-                    data: Object.values(gradeData),
-                    backgroundColor: [
-                        siakadPrimary,
-                        siakadSecondary,
-                        siakadDark,
-                        '#86c5e0',
-                        '#b9dded',
-                        '#dceef6',
-                        '#E3E3E3'
-                    ],
-                    borderWidth: 0,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
-                    }
+        document.addEventListener('DOMContentLoaded', function () {
+            const siakadPrimary = '#234C6A';
+            const siakadSecondary = '#456882';
+            const siakadDark = '#1B3C53';
+            
+            // Grade Chart
+            const gradeData = @json($gradeDistribution);
+            const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+            new Chart(gradeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(gradeData),
+                    datasets: [{
+                        data: Object.values(gradeData),
+                        backgroundColor: [
+                            siakadPrimary,
+                            siakadSecondary,
+                            siakadDark,
+                            '#86c5e0',
+                            '#b9dded',
+                            '#dceef6',
+                            '#E3E3E3'
+                        ],
+                        borderWidth: 0,
+                    }]
                 },
-                cutout: '60%'
-            }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
         });
     </script>
     @endif

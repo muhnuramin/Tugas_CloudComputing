@@ -8,7 +8,7 @@ use App\Models\Krs;
 use App\Models\Nilai;
 use App\Models\Pertemuan;
 use App\Models\Presensi;
-use App\Models\TahunAkademik;
+use App\Services\CacheService;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -22,11 +22,12 @@ class DashboardController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $activeTA = TahunAkademik::where('is_active', true)->first();
+        $activeTA = app(CacheService::class)->getActiveTahunAkademik();
 
         // Get kelas yang diampu (filter by active tahun akademik if available)
         $kelasQuery = Kelas::where('dosen_id', $dosen->id)
-            ->with(['mataKuliah', 'krsDetail.krs.mahasiswa', 'jadwal']);
+            ->with(['mataKuliah', 'jadwal'])
+            ->withCount('krsDetail');
         
         if ($activeTA) {
             $kelasQuery->where(function($q) use ($activeTA) {
@@ -36,30 +37,31 @@ class DashboardController extends Controller
         }
         
         $kelasList = $kelasQuery->get();
+        $kelasIds = $kelasList->pluck('id');
 
         // Stats
         $totalKelas = $kelasList->count();
-        $totalMahasiswa = $kelasList->sum(fn($k) => $k->krsDetail->count());
+        $totalMahasiswa = (int) $kelasList->sum('krs_detail_count');
         
         // Get total nilai yang sudah diinput
-        $nilaiDiinput = Nilai::whereIn('kelas_id', $kelasList->pluck('id'))
+        $nilaiDiinput = Nilai::whereIn('kelas_id', $kelasIds)
             ->whereNotNull('nilai_angka')
             ->count();
-        $totalNilai = $kelasList->sum(fn($k) => $k->krsDetail->count());
+        $totalNilai = $totalMahasiswa;
         $persentaseNilai = $totalNilai > 0 ? round(($nilaiDiinput / $totalNilai) * 100) : 0;
 
         // Presensi stats
-        $pertemuanList = Pertemuan::whereHas('jadwalKuliah', fn($q) => $q->whereIn('kelas_id', $kelasList->pluck('id')))->get();
-        $totalPertemuan = $pertemuanList->count();
+        $pertemuanIds = Pertemuan::whereHas('jadwalKuliah', fn($q) => $q->whereIn('kelas_id', $kelasIds))->pluck('id');
+        $totalPertemuan = $pertemuanIds->count();
         
-        $presensiStats = Presensi::whereIn('pertemuan_id', $pertemuanList->pluck('id'))
+        $presensiStats = Presensi::whereIn('pertemuan_id', $pertemuanIds)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
         // Mahasiswa bimbingan
-        $mahasiswaBimbingan = $dosen->mahasiswaBimbingan()->with('user')->get();
+        $mahasiswaBimbingan = $dosen->mahasiswaBimbingan()->select('id', 'dosen_pa_id')->get();
         $pendingKrs = $mahasiswaBimbingan->isNotEmpty() 
             ? Krs::whereIn('mahasiswa_id', $mahasiswaBimbingan->pluck('id'))
                 ->where('status', 'pending')
@@ -67,7 +69,7 @@ class DashboardController extends Controller
             : 0;
 
         // Recent activities (recent nilai input)
-        $recentNilai = Nilai::whereIn('kelas_id', $kelasList->pluck('id'))
+        $recentNilai = Nilai::whereIn('kelas_id', $kelasIds)
             ->whereNotNull('nilai_angka')
             ->with(['kelas.mataKuliah', 'mahasiswa.user'])
             ->orderBy('updated_at', 'desc')

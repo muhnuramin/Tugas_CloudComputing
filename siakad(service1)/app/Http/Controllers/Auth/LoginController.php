@@ -27,11 +27,13 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // Mengirim notifikasi melalui Laravel Queue
-            SendTelegramLoginNotification::dispatch([
-                'name' => $user->name,
-                'email' => $user->email,
-                'message' => 'Pengguna berhasil login ke LMS',
-            ]);
+            if (config('services.telegram.notification_chat_id')) {
+                SendTelegramLoginNotification::dispatch([
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'message' => 'Pengguna berhasil login ke LMS',
+                ]);
+            }
 
             // Langsung arahkan user ke dashboard
             return redirect()->intended('/dashboard');

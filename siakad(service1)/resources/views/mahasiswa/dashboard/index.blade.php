@@ -146,69 +146,71 @@
     @endif
 
     @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // SIAKAD Colors
-        const siakadPrimary = '#234C6A';
-        const siakadSecondary = '#456882';
-        
-        // Detect dark mode
-        const isDark = document.documentElement.classList.contains('dark');
-        const gridColor = isDark ? '#334155' : '#E3E3E3';
-        const textColor = isDark ? '#94A3B8' : '#456882';
+        document.addEventListener('DOMContentLoaded', function () {
+            // SIAKAD Colors
+            const siakadPrimary = '#234C6A';
+            const siakadSecondary = '#456882';
+            
+            // Detect dark mode
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? '#334155' : '#E3E3E3';
+            const textColor = isDark ? '#94A3B8' : '#456882';
 
-        // SKS Chart
-        const sksData = @json($sksHistory);
-        const sksCtx = document.getElementById('sksChart').getContext('2d');
-        new Chart(sksCtx, {
-            type: 'bar',
-            data: {
-                labels: sksData.map(d => d.semester.substring(0, 9)),
-                datasets: [{
-                    label: 'SKS',
-                    data: sksData.map(d => d.sks),
-                    backgroundColor: siakadPrimary,
-                    borderRadius: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, max: 24, grid: { color: gridColor }, ticks: { color: textColor } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
+            // SKS Chart
+            const sksData = @json($sksHistory);
+            const sksCtx = document.getElementById('sksChart').getContext('2d');
+            new Chart(sksCtx, {
+                type: 'bar',
+                data: {
+                    labels: sksData.map(d => d.semester.substring(0, 9)),
+                    datasets: [{
+                        label: 'SKS',
+                        data: sksData.map(d => d.sks),
+                        backgroundColor: siakadPrimary,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 24, grid: { color: gridColor }, ticks: { color: textColor } },
+                        x: { grid: { display: false }, ticks: { color: textColor } }
+                    }
                 }
-            }
-        });
+            });
 
-        // IPS Chart
-        const ipsData = @json($ipsHistory);
-        const ipsCtx = document.getElementById('ipsChart').getContext('2d');
-        new Chart(ipsCtx, {
-            type: 'line',
-            data: {
-                labels: ipsData.map(d => d.tahun_akademik.substring(0, 9)),
-                datasets: [{
-                    label: 'IPS',
-                    data: ipsData.map(d => d.ips),
-                    borderColor: isDark ? '#60A5FA' : siakadPrimary,
-                    backgroundColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(35, 76, 106, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 5,
-                    pointBackgroundColor: isDark ? '#60A5FA' : siakadPrimary,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { min: 0, max: 4, ticks: { stepSize: 0.5, color: textColor }, grid: { color: gridColor } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
+            // IPS Chart
+            const ipsData = @json($ipsHistory);
+            const ipsCtx = document.getElementById('ipsChart').getContext('2d');
+            new Chart(ipsCtx, {
+                type: 'line',
+                data: {
+                    labels: ipsData.map(d => d.tahun_akademik.substring(0, 9)),
+                    datasets: [{
+                        label: 'IPS',
+                        data: ipsData.map(d => d.ips),
+                        borderColor: isDark ? '#60A5FA' : siakadPrimary,
+                        backgroundColor: isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(35, 76, 106, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: isDark ? '#60A5FA' : siakadPrimary,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { min: 0, max: 4, ticks: { stepSize: 0.5, color: textColor }, grid: { color: gridColor } },
+                        x: { grid: { display: false }, ticks: { color: textColor } }
+                    }
                 }
-            }
+            });
         });
     </script>
     @endpush
