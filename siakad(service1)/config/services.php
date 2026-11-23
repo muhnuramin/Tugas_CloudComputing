@@ -64,6 +64,7 @@ return [
 
     'telegram' => [
         'url' => env('TELEGRAM_SERVICE_URL', env('TELEGRAM_GATEWAY_URL')),
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'notification_chat_id' => env('TELEGRAM_NOTIFICATION_CHAT_ID'),
     ],
 

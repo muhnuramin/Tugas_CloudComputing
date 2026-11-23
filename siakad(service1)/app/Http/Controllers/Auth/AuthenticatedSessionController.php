@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\SendTelegramLoginNotification;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Jobs\SendTelegramLoginNotification;
+use App\Services\TelegramGatewayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,13 +38,11 @@ class AuthenticatedSessionController extends Controller
                 'email' => $user->email,
                 'message' => 'Pengguna berhasil login ke LMS',
             ]);
+        } elseif ($user->telegram_chat_id) {
+            // Kirim detail login ke Telegram pribadi hanya jika tujuan grup tidak diatur.
+            app(TelegramGatewayService::class)->queueLoginNotification($user, $request);
         }
 
-        // Kirim notifikasi login ke Telegram via Service 2 jika user memiliki telegram_chat_id
-        if ($user && $user->telegram_chat_id) {
-            app(\App\Services\TelegramGatewayService::class)->queueLoginNotification($user, $request);
-        }
-        
         // Redirect berdasarkan role
         $redirectRoute = match ($user->role) {
             'mahasiswa' => 'mahasiswa.dashboard',

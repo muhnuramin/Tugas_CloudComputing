@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Notification;
-use App\Models\User;
+use App\Jobs\SendTelegramNotification;
+use App\Models\JadwalKuliah;
 use App\Models\Kelas;
 use App\Models\Krs;
-use App\Models\JadwalKuliah;
-use App\Jobs\SendTelegramNotification;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 class NotificationService
@@ -25,10 +25,18 @@ class NotificationService
             'data' => $data,
         ]);
 
-        if ($user->hasTelegramChatId()) {
+        $groupChatId = config('services.telegram.notification_chat_id');
+        $chatId = $groupChatId ?: ($user->hasTelegramChatId() ? $user->telegram_chat_id : null);
+
+        if ($chatId !== null) {
+            $telegramMessage = "{$title}\n\n{$message}";
+            if ($groupChatId && $user->name) {
+                $telegramMessage = "Penerima: {$user->name}\n\n{$telegramMessage}";
+            }
+
             SendTelegramNotification::dispatch(
-                $user->telegram_chat_id,
-                "{$title}\n\n{$message}",
+                (string) $chatId,
+                $telegramMessage,
             )->afterCommit();
         }
 
@@ -45,6 +53,7 @@ class NotificationService
             $this->send($user, $type, $title, $message, $data);
             $count++;
         }
+
         return $count;
     }
 
@@ -77,7 +86,7 @@ class NotificationService
         }
 
         $title = "Perubahan Jadwal: {$kelas->mataKuliah->nama_mk}";
-        $message = "Jadwal kelas {$kelas->nama_kelas} telah diubah.\n" . implode("\n", $changeDesc);
+        $message = "Jadwal kelas {$kelas->nama_kelas} telah diubah.\n".implode("\n", $changeDesc);
 
         $data = [
             'kelas_id' => $kelas->id,
@@ -97,7 +106,7 @@ class NotificationService
         $title = $approved ? 'KRS Disetujui' : 'KRS Ditolak';
         $message = $approved
             ? 'Pengajuan KRS Anda telah disetujui.'
-            : 'Pengajuan KRS Anda ditolak.' . ($krs->catatan ? "\nCatatan: {$krs->catatan}" : '');
+            : 'Pengajuan KRS Anda ditolak.'.($krs->catatan ? "\nCatatan: {$krs->catatan}" : '');
 
         return $this->send(
             $krs->mahasiswa->user,
