@@ -15,11 +15,12 @@ Sistem ini terdiri dari dua layanan (*microservices*) independen yang berkomunik
 
 ```mermaid
 graph TD
-    User["Client / Browser (User)"] -->|"HTTP :8080"| Service1["Service 1: SIAKAD (Laravel 12 / PHP 8.4)"]
+    User["Client / Browser (User)"] -->|"HTTP :APP_PORT"| Service1["Service 1: SIAKAD (Laravel 12 / PHP 8.4)"]
     Service1 -->|"TCP :3306"| DB1[("MySQL SIAKAD DB")]
-    Service1 -->|"HTTP POST :8002/send-message"| Service2["Service 2: Telegram Gateway (FastAPI Python)"]
+    Service1 -->|"HTTPS Bot API (utama)"| TelegramAPI["Telegram Bot API"]
+    Service1 -->|"HTTP :8002/send-message (fallback)"| Service2["Service 2: Telegram Gateway (FastAPI Python)"]
     Service2 -->|"TCP :3307"| DB2[("MySQL Gateway DB")]
-    Service2 -->|"HTTPS API"| TelegramAPI["Telegram Bot Server"]
+    Service2 -->|"HTTPS API"| TelegramAPI
     TelegramAPI -->|"Notifikasi Pesan"| TelegramApp["Aplikasi Telegram Pengguna"]
 ```
 
@@ -27,8 +28,8 @@ graph TD
 
 | Service | Komponen | Port Host | URL Akses | Fungsi |
 |---|---|---|---|---|
-| **Service 1 (SIAKAD)** | Laravel Web App | `8080` | `http://localhost:8080` | Portal Sistem Informasi Akademik |
-| **Service 1 (SIAKAD)** | MySQL Database | `3306` | `localhost:3306` | Database utama SIAKAD |
+| **Service 1 (SIAKAD)** | Laravel Web App | `APP_PORT` (default `8080`; mesin ini `8081`) | `APP_URL` (mesin ini: `http://localhost:8081`) | Portal Sistem Informasi Akademik |
+| **Service 1 (SIAKAD)** | MySQL Database | `FORWARD_DB_PORT` (default `3306`; mesin ini `3308`) | `localhost:FORWARD_DB_PORT` | Database utama SIAKAD |
 | **Service 1 (SIAKAD)** | Mailpit | `8025` | `http://localhost:8025` | Mail testing dashboard |
 | **Service 2 (Gateway)** | FastAPI Backend | `8002` | `http://localhost:8002/docs` | REST API Telegram Gateway & Swagger Docs |
 | **Service 2 (Gateway)** | Nginx Proxy | `80` | `http://localhost` | Reverse proxy Service 2 |
@@ -98,7 +99,7 @@ cd Tugas_CloudComputing
    # Linux / macOS:
    cp .env.example .env
    ```
-   File `.env.example` mengatur `TELEGRAM_GATEWAY_URL=http://host.docker.internal:8002` dan database MySQL Docker.
+   File `.env.example` mengatur `TELEGRAM_GATEWAY_URL=http://host.docker.internal:8002`, database MySQL Docker, dan variabel Telegram. Isi `TELEGRAM_BOT_TOKEN` pada `.env` SIAKAD dengan token yang sama seperti di `.env` Gateway agar queue worker mengirim langsung ke Bot API. Isi `TELEGRAM_NOTIFICATION_CHAT_ID` dengan Chat ID grup tujuan.
 
 3. **Install Dependensi Composer via Docker** *(Karena folder vendor tidak di-commit ke Git)*:
    
@@ -121,7 +122,9 @@ cd Tugas_CloudComputing
 
 ### Langkah 4: Inisialisasi Database SIAKAD (Key, Migrasi & Seeder)
 
-Setelah container SIAKAD aktif, jalankan perintah berikut di terminal:
+Langkah ini hanya untuk instalasi baru. Jika database sudah berisi data, jangan menjalankan `key:generate` atau `migrate --seed` ulang; cukup pastikan migrasi sudah diterapkan.
+
+Setelah container SIAKAD aktif pada instalasi baru, jalankan:
 
 ```bash
 docker compose exec laravel.test php artisan key:generate
@@ -143,7 +146,7 @@ docker compose up -d laravel.queue
 
 ## 4. Akun Default untuk Pengujian / Demo Dosen
 
-Setelah proses seed selesai, dosen dapat langsung login ke web SIAKAD di: 👉 **[http://localhost:8080](http://localhost:8080)**
+Setelah proses seed selesai, login ke alamat `APP_URL`. Pada clone baru alamat default-nya `http://localhost:8080`; konfigurasi lokal yang dijalankan pada mesin ini menggunakan **[http://localhost:8081](http://localhost:8081)**.
 
 | Role Pengguna | Email | Password | Hak Akses |
 |---|---|---|---|
@@ -154,24 +157,60 @@ Setelah proses seed selesai, dosen dapat langsung login ke web SIAKAD di: 👉 *
 
 ---
 
-## 5. Cara Mendemonstrasikan Notifikasi Telegram ke Dosen
+## 5. Cara Menguji Notifikasi Telegram
 
 1. **Aktivasi Bot Telegram:**
-   - Pengguna membuka bot yang tokennya dimasukkan ke file `.env` gateway dan menekan **Start**.
-   - Biarkan percakapan dengan bot tetap aktif agar bot dapat mengirim pesan kepada pengguna.
-2. **Dapatkan Chat ID Dosen:**
-   - Dari akun Telegram yang sama, buka bot **`@userinfobot`** dan klik `/start`.
-   - Catat angka **Id** yang ditampilkan.
-3. **Simpan Chat ID ke Akun SIAKAD:**
-   - Login ke [http://localhost:8080](http://localhost:8080) menggunakan akun SIAKAD yang notifikasinya ingin diterima.
-   - Masuk ke menu **Profil** di pojok kanan atas.
-   - Isi kolom **Telegram Chat ID** dengan ID akun Telegram Anda, lalu klik **Simpan**.
-4. **Uji Notifikasi:**
-   - Klik **Logout** lalu lakukan **Login** kembali.
-   - Worker antrean pada service `laravel.queue` akan mengirim notifikasi login ke Telegram, tanpa menunggu respons Telegram di halaman login.
-   - Perubahan jadwal, persetujuan/penolakan KRS, dan pembaruan nilai juga membuat notifikasi di aplikasi dan antrean Telegram jika Chat ID penerima sudah disimpan.
+   - Buka bot yang tokennya sudah diatur di `.env`, lalu tekan **Start**.
+   - Tambahkan bot ke grup yang Anda pilih. Pastikan semua anggota grup berwenang melihat informasi login dan akademik yang dikirim.
+   - Isi `TELEGRAM_NOTIFICATION_CHAT_ID` pada `.env` SIAKAD dengan Chat ID grup. Nilai ini sudah diatur pada konfigurasi lokal mesin ini; jangan memasukkannya ke README atau Git.
+   - Pastikan `TELEGRAM_BOT_TOKEN` pada `.env` SIAKAD sama dengan token bot Gateway. Setelah mengubah konfigurasi, dari folder `siakad(service1)` jalankan `docker compose restart laravel.test laravel.queue`.
+2. **Pastikan layanan siap:**
+   - SIAKAD: buka alamat `APP_URL`; pada mesin ini [http://localhost:8081](http://localhost:8081).
+   - Gateway (fallback): jika token SIAKAD kosong, pastikan [http://localhost:8002/health](http://localhost:8002/health) merespons `{"status":"ok"}`.
+   - Di PowerShell, dari folder `telegramgateway(service2)`, jalankan `docker compose ps`; dari folder `siakad(service1)`, jalankan `docker compose ps`. Pastikan container `laravel.queue` berjalan.
+3. **Uji pengiriman nyata dari aplikasi:**
+   - **Login:** logout, lalu login kembali. Grup seharusnya menerima notifikasi login.
+   - **KRS:** ajukan KRS sebagai mahasiswa, lalu minta dosen PA/admin menyetujui atau menolak pengajuan. Grup seharusnya menerima status KRS dengan nama mahasiswa.
+   - **Perubahan jadwal:** sebagai admin, ubah hari, jam, atau ruangan kelas yang memiliki mahasiswa terdaftar. Grup seharusnya menerima notifikasi untuk mahasiswa yang mengambil kelas tersebut.
+   - **Nilai:** sebagai dosen, simpan/perbarui nilai mahasiswa pada menu penilaian. Grup seharusnya menerima nilai yang diperbarui beserta nama penerima.
+4. **Periksa error jika pesan tidak tiba:**
+   - Dari folder `siakad(service1)`, lihat antrean gagal: `docker compose exec laravel.test php artisan queue:failed`.
+   - Lihat log worker: `docker logs --tail 100 lms-queue-worker`.
+   - Lihat log Gateway: `docker logs --tail 100 telegramgatewayservice2-app-1`.
+   - Pastikan bot sudah berada di grup, Chat ID grup benar, `QUEUE_CONNECTION=database`, dan token SIAKAD benar. Jika token SIAKAD kosong, pastikan Gateway aktif.
 
-> **Catatan:** Pastikan `QUEUE_CONNECTION=database`, `TELEGRAM_GATEWAY_URL` mengarah ke Service 2, dan container queue worker tetap berjalan. Pengiriman Telegram bersifat asinkron; waktu sampai tetap bergantung pada koneksi jaringan dan layanan Telegram, jadi tidak dapat dijamin tanpa jeda sama sekali.
+> **Penting untuk PowerShell di Windows:** jangan jalankan `php artisan queue:work` langsung di komputer host. `.env` mengatur `DB_HOST=mysql`, nama service yang hanya bisa ditemukan dari jaringan Docker. Jangan mengubahnya menjadi `localhost`, karena aplikasi di dalam Docker juga memakai `.env` yang sama. Worker `laravel.queue` sudah berjalan di container.
+
+Untuk melihat proses worker:
+
+```powershell
+Set-Location "siakad(service1)"
+docker compose ps
+docker logs -f lms-queue-worker
+```
+
+Jika perlu menjalankan worker di foreground untuk debugging, hentikan worker latar dahulu agar tidak ada dua worker:
+
+```powershell
+Set-Location "siakad(service1)"
+docker compose stop laravel.queue
+docker compose exec laravel.test php artisan queue:work database --verbose
+```
+
+Setelah menghentikan perintah foreground dengan `Ctrl+C`, hidupkan kembali worker latar:
+
+```powershell
+docker compose start laravel.queue
+```
+
+Tes otomatis yang hanya memverifikasi job masuk antrean (tidak mengirim pesan Telegram sungguhan):
+
+```powershell
+Set-Location "siakad(service1)"
+docker compose exec laravel.test php artisan test tests/Unit/TelegramNotificationDispatchTest.php
+```
+
+Notifikasi dikirim di latar belakang oleh queue worker. Waktu tiba tetap bergantung pada koneksi internet dan layanan Telegram; tidak dijamin tanpa jeda.
 
 ---
 
@@ -185,4 +224,15 @@ Setelah proses seed selesai, dosen dapat langsung login ke web SIAKAD di: 👉 *
 | **Restart kedua service** | `docker restart siakadservice1-laravel.test-1 telegramgatewayservice2-app-1` |
 | **Menghentikan Service 1** | `cd "siakad(service1)" && docker compose down` |
 | **Menghentikan Service 2** | `cd "telegramgateway(service2)" && docker compose down` |
-| **Buka phpMyAdmin (Database GUI)** | `docker run -d --name siakad-pma --network siakadservice1_sail -p 8081:80 -e PMA_HOST=mysql phpmyadmin/phpmyadmin` (akses di `http://localhost:8081`) |
+| **Buka phpMyAdmin (Database GUI)** | `docker run -d --name siakad-pma --network siakadservice1_sail -p 8082:80 -e PMA_HOST=mysql phpmyadmin/phpmyadmin` (akses di `http://localhost:8082`; pastikan port kosong) |
+
+### Bersihkan file sementara yang bisa dibuat ulang
+
+Cache tampilan Blade aman dibersihkan; Laravel akan membuatnya kembali saat dibutuhkan:
+
+```powershell
+Set-Location "siakad(service1)"
+docker compose exec laravel.test php artisan view:clear
+```
+
+Jangan menghapus `.env`, `vendor`, database, atau log untuk menghemat ruang tanpa memeriksa isinya: konfigurasi, dependensi, data, dan log tersebut diperlukan untuk menjalankan atau mendiagnosis aplikasi.

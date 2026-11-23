@@ -2,13 +2,14 @@
 
 namespace App\Jobs;
 
-use InvalidArgumentException;
+use App\Services\TelegramGatewayService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
+use RuntimeException;
 
 class SendTelegramLoginNotification implements ShouldQueue
 {
@@ -22,27 +23,24 @@ class SendTelegramLoginNotification implements ShouldQueue
         public array $userData
     ) {}
 
-    public function handle(): void
+    public function handle(TelegramGatewayService $telegramGateway): void
     {
-        $url = config('services.telegram.url');
         $chatId = config('services.telegram.notification_chat_id');
 
-        if (!$url || !$chatId) {
-            throw new InvalidArgumentException('Telegram gateway URL and notification chat ID must be configured.');
+        if (! $chatId) {
+            throw new InvalidArgumentException('Telegram notification chat ID must be configured.');
         }
 
-        Http::timeout(10)
-            ->post(rtrim($url, '/') . '/send-message', [
-                'chat_id' => $chatId,
-                'text' => implode("\n", [
-                    'Notifikasi login LMS',
-                    'Nama: ' . ($this->userData['name'] ?? '-'),
-                    'Email: ' . ($this->userData['email'] ?? '-'),
-                    'Pesan: ' . ($this->userData['message'] ?? '-'),
-                ]),
-                'parse_mode' => null,
-            ])
-            ->throw();
+        $message = implode("\n", [
+            'Notifikasi login LMS',
+            'Nama: '.($this->userData['name'] ?? '-'),
+            'Email: '.($this->userData['email'] ?? '-'),
+            'Pesan: '.($this->userData['message'] ?? '-'),
+        ]);
+
+        if (! $telegramGateway->sendMessage($chatId, $message, null)) {
+            throw new RuntimeException('Telegram login notification could not be delivered.');
+        }
     }
 
     public function backoff(): array

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 class TelegramGatewayService
 {
     protected string $baseUrl;
+
     protected int $timeout;
 
     public function __construct()
@@ -36,42 +37,63 @@ class TelegramGatewayService
         $roleName = ucfirst(str_replace('_', ' ', $user->role ?? 'User'));
 
         $message = "🔔 <b>Notifikasi Login SIAKAD</b>\n\n"
-            . "Halo, <b>" . htmlspecialchars($user->name, ENT_QUOTES, 'UTF-8') . "</b>! 👋\n"
-            . "Akun Anda baru saja login ke Sistem Informasi Akademik (SIAKAD).\n\n"
-            . "📋 <b>Detail Sesi:</b>\n"
-            . "• <b>Waktu:</b> {$now} WIB\n"
-            . "• <b>Role:</b> {$roleName}\n"
-            . "• <b>IP Address:</b> <code>{$ip}</code>\n"
-            . "• <b>Perangkat:</b> {$device}\n\n"
-            . "⚠️ <i>Jika ini bukan Anda, segera ubah kata sandi akun Anda atau hubungi administrator.</i>";
+            .'Halo, <b>'.htmlspecialchars($user->name, ENT_QUOTES, 'UTF-8')."</b>! 👋\n"
+            ."Akun Anda baru saja login ke Sistem Informasi Akademik (SIAKAD).\n\n"
+            ."📋 <b>Detail Sesi:</b>\n"
+            ."• <b>Waktu:</b> {$now} WIB\n"
+            ."• <b>Role:</b> {$roleName}\n"
+            ."• <b>IP Address:</b> <code>{$ip}</code>\n"
+            ."• <b>Perangkat:</b> {$device}\n\n"
+            .'⚠️ <i>Jika ini bukan Anda, segera ubah kata sandi akun Anda atau hubungi administrator.</i>';
 
         SendTelegramNotification::dispatch($user->telegram_chat_id, $message, 'HTML')->afterCommit();
     }
 
     /**
-     * Kirim pesan teks ke Telegram melalui endpoint Service 2 (/send-message).
+     * Kirim langsung ke Bot API bila token tersedia; gunakan Gateway sebagai fallback.
      */
     public function sendMessage(string|int $chatId, string $text, ?string $parseMode = 'HTML'): bool
     {
+        $botToken = config('services.telegram.bot_token');
+        $sendDirectly = is_string($botToken) && $botToken !== '';
+        $endpoint = $sendDirectly
+            ? "https://api.telegram.org/bot{$botToken}/sendMessage"
+            : "{$this->baseUrl}/send-message";
+        $payload = array_filter([
+            'chat_id' => (string) $chatId,
+            'text' => $text,
+            'parse_mode' => $parseMode,
+        ], fn ($value) => $value !== null);
+
         try {
-            $endpoint = "{$this->baseUrl}/send-message";
+            $response = Http::timeout($this->timeout)->post($endpoint, $payload);
 
-            $response = Http::timeout($this->timeout)->post($endpoint, [
-                'chat_id' => (string) $chatId,
-                'text' => $text,
-                'parse_mode' => $parseMode,
-            ]);
-
-            if ($response->successful()) {
+            if ($response->successful() && (! $sendDirectly || $response->json('ok') === true)) {
                 Log::info("Notifikasi Telegram berhasil dikirim ke chat_id: {$chatId}");
+
                 return true;
             }
 
+            if ($sendDirectly) {
+                Log::warning('Telegram Bot API mengembalikan kegagalan.', [
+                    'status' => $response->status(),
+                    'description' => $response->json('description'),
+                ]);
+
+                return false;
+            }
+
             Log::warning("Telegram Gateway mengembalikan status [{$response->status()}]: {$response->body()}");
+
             return false;
         } catch (\Throwable $e) {
-            // Mencegah kegagalan gateway mempengaruhi alur login user
-            Log::error("Gagal terhubung ke Telegram Gateway ({$this->baseUrl}): " . $e->getMessage());
+            $destination = $sendDirectly ? 'Telegram Bot API' : "Telegram Gateway ({$this->baseUrl})";
+            $error = $sendDirectly
+                ? str_replace((string) $botToken, '[REDACTED]', $e->getMessage())
+                : $e->getMessage();
+
+            Log::error("Gagal terhubung ke {$destination}: {$error}");
+
             return false;
         }
     }
@@ -81,7 +103,7 @@ class TelegramGatewayService
      */
     protected function parseUserAgent(?string $userAgent): string
     {
-        if (!$userAgent) {
+        if (! $userAgent) {
             return 'Tidak Diketahui';
         }
 
